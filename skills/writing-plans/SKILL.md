@@ -15,8 +15,7 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 **Context:** This should be run in a dedicated worktree (created by brainstorming skill).
 
-**Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
-- (User preferences for plan location override this default)
+**Store plans as issues:** Plans are stored in GitHub/GitBucket issues (not local files). Check `GIT_PLATFORM` from session context and use appropriate issue creation tool.
 
 ## Scope Check
 
@@ -119,23 +118,66 @@ Every step must contain the actual content an engineer needs. These are **plan f
 - Exact commands with expected output
 - DRY, YAGNI, TDD, frequent commits
 
+## After the Plan
+
+**Create Plan Issue (REQUIRED):**
+
+Plans are stored as GitHub/GitBucket issues. No local file storage.
+
+Check `GIT_PLATFORM` in your session context (`<GIT_CONTEXT>` block):
+
+- If `GIT_PLATFORM=github`:
+  ```markdown
+  Use github_issue_write with:
+  - method: "create"
+  - title: [Plan] <feature-name> Implementation
+  - body: Full implementation plan (all tasks, all steps, complete code)
+  - labels: plan
+  ```
+
+- Else if `GIT_PLATFORM=gitbucket`:
+  ```markdown
+  First, check GITBUCKET_HAS_CREDENTIALS:
+  - If false: STOP. Tell user "GitBucket credentials required."
+  - If true: Proceed with gitbucket_create_issue
+  
+  Use gitbucket_create_issue with:
+  - title: [Plan] <feature-name> Implementation
+  - body: Full implementation plan (all tasks, all steps, complete code)
+  - labels: plan
+  ```
+
+- Else (unknown):
+  ```markdown
+  STOP. Tell user "No GitHub/GitBucket remote detected."
+  ```
+
+The issue body should contain the complete plan. Do not link to a file - put all implementation content in the issue.
+
+**Link to Spec Issue:**
+
+Comment on the spec issue to link this plan:
+
+- If GitHub: `github_add_issue_comment(spec_issue_number, "Implementation plan: #<plan_issue_number>")`
+- If GitBucket: `gitbucket_add_issue_comment(spec_issue_number, "Implementation plan: #<plan_issue_number>")`
+
 ## Self-Review
 
-After writing the complete plan, look at the spec with fresh eyes and check the plan against it. This is a checklist you run yourself — not a subagent dispatch.
+After writing the complete plan, review with fresh eyes:
 
-**1. Spec coverage:** Skim each section/requirement in the spec. Can you point to a task that implements it? List any gaps.
+**1. Spec coverage:** Skim each section/requirement in the spec issue. Can you point to a task that implements it? Edit the plan issue to add missing tasks.
 
-**2. Placeholder scan:** Search your plan for red flags — any of the patterns from the "No Placeholders" section above. Fix them.
+**2. Placeholder scan:** Search your plan for red flags — any of the patterns from the "No Placeholders" section above. Edit the issue to fix them.
 
-**3. Type consistency:** Do the types, method signatures, and property names you used in later tasks match what you defined in earlier tasks? A function called `clearLayers()` in Task 3 but `clearFullLayers()` in Task 7 is a bug.
+**3. Type consistency:** Do the types, method signatures, and property names you used in later tasks match what you defined in earlier tasks? A function called `clearLayers()` in Task 3 but `clearFullLayers()` in Task 7 is a bug. Edit to fix.
 
-If you find issues, fix them inline. No need to re-review — just fix and move on. If you find a spec requirement with no task, add the task.
+Fix issues by editing the plan issue. No need to re-review — just fix and move on.
 
 ## Execution Handoff
 
-After saving the plan, offer execution choice:
+After creating the plan issue, offer execution choice:
 
-**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Two execution options:**
+**"Plan created as issue #<number>. Two execution options:**
 
 **1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
 

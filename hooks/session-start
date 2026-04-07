@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 # SessionStart hook for superpowers plugin
+#
+# This hook:
+# 1. Extracts git context via session_init.py (platform, owner, repo, credentials)
+# 2. Injects using-superpowers skill content
+# 3. Adds platform-specific tool guidance
 
 set -euo pipefail
 
@@ -14,8 +19,23 @@ if [ -d "$legacy_skills_dir" ]; then
     warning_message="\n\n<important-reminder>IN YOUR FIRST REPLY AFTER SEEING THIS MESSAGE YOU MUST TELL THE USER:⚠️ **WARNING:** Superpowers now uses Claude Code's skills system. Custom skills in ~/.config/superpowers/skills will not be read. Move custom skills to ~/.claude/skills instead. To make this message go away, remove ~/.config/superpowers/skills</important-reminder>"
 fi
 
+# Run session init script to extract git context
+# Output: DEV_NAME, DEV_EMAIL, GIT_OWNER, GIT_REPO, GIT_PLATFORM, etc.
+session_init_output=""
+if [ -x "${PLUGIN_ROOT}/scripts/session_init.py" ]; then
+    session_init_output=$("${PLUGIN_ROOT}/scripts/session_init.py" 2>/dev/null) || session_init_output=""
+elif command -v python3 >/dev/null 2>&1; then
+    session_init_output=$(python3 "${PLUGIN_ROOT}/scripts/session_init.py" 2>/dev/null) || session_init_output=""
+fi
+
 # Read using-superpowers content
 using_superpowers_content=$(cat "${PLUGIN_ROOT}/skills/using-superpowers/SKILL.md" 2>&1 || echo "Error reading using-superpowers skill")
+
+# Read platform detection content (provides guidance on GitHub vs GitBucket)
+platform_detection_content=""
+if [ -f "${PLUGIN_ROOT}/skills/platform-detection.md" ]; then
+    platform_detection_content=$(cat "${PLUGIN_ROOT}/skills/platform-detection.md" 2>&1) || platform_detection_content=""
+fi
 
 # Escape string for JSON embedding using bash parameter substitution.
 # Each ${s//old/new} is a single C-level pass - orders of magnitude
@@ -32,7 +52,35 @@ escape_for_json() {
 
 using_superpowers_escaped=$(escape_for_json "$using_superpowers_content")
 warning_escaped=$(escape_for_json "$warning_message")
-session_context="<EXTREMELY_IMPORTANT>\nYou have superpowers.\n\n**Below is the full content of your 'superpowers:using-superpowers' skill - your introduction to using skills. For all other skills, use the 'Skill' tool:**\n\n${using_superpowers_escaped}\n\n${warning_escaped}\n</EXTREMELY_IMPORTANT>"
+session_init_escaped=$(escape_for_json "$session_init_output")
+platform_detection_escaped=$(escape_for_json "$platform_detection_content")
+
+# Build the context string
+# Format:
+#   1. Session init output (git context)
+#   2. using-superpowers skill
+#   3. platform-detection reference
+#   4. Warning about legacy skills
+session_context="<EXTREMELY_IMPORTANT>\nYou have superpowers.\n\n**Below is the full content of your 'superpowers:using-superpowers' skill - your introduction to using skills. For all other skills, use the 'Skill' tool:**\n\n${using_superpowers_escaped}\n\n${warning_escaped}\n\n"
+
+# Add session init output if available
+if [ -n "$session_init_output" ]; then
+    session_context+="<GIT_CONTEXT>\n${session_init_escaped}\n</GIT_CONTEXT>\n\n"
+fi
+
+# Add platform detection reference if available
+if [ -n "$platform_detection_content" ]; then
+    session_context+="<PLATFORM_DETECTION>\n${platform_detection_escaped}\n</PLATFORM_DETECTION>\n\n"
+fi
+
+# Add skill invocation reminder based on platform detected
+if echo "$session_init_output" | grep -q "GIT_PLATFORM=github"; then
+    session_context+="<SKILL_REMINDER>\nPlatform: GitHub\n- Use GitHub tools (github_issue_write, github_create_issue, etc.) for issue tracking\n- Use GitHub tools (github_create_pull_request, github_merge_pull_request, etc.) for PRs\n- Skills that create issues will use GitHub MCP tools\n</SKILL_REMINDER>\n\n"
+elif echo "$session_init_output" | grep -q "GIT_PLATFORM=gitbucket"; then
+    session_context+="<SKILL_REMINDER>\nPlatform: GitBucket\n- Use GitBucket tools (gitbucket_create_issue, etc.) for issue tracking\n- Use GitBucket tools (gitbucket_create_pull_request, etc.) for PRs\n- Skills that create issues will use GitBucket API tools\n- Ensure GITBUCKET_URL and GITBUCKET_TOKEN are set in .env if using GitBucket API\n</SKILL_REMINDER>\n\n"
+fi
+
+session_context+="</EXTREMELY_IMPORTANT>"
 
 # Output context injection as JSON.
 # Cursor hooks expect additional_context (snake_case).
@@ -42,7 +90,7 @@ session_context="<EXTREMELY_IMPORTANT>\nYou have superpowers.\n\n**Below is the 
 # deduplication, so we must emit only the field the current platform consumes.
 #
 # Uses printf instead of heredoc to work around bash 5.3+ heredoc hang.
-# See: https://github.com/obra/superpowers/issues/571
+# See: https://github.com/NewsRx/opencode-gitbucket-superpowers/issues/571
 if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
   # Cursor sets CURSOR_PLUGIN_ROOT (may also set CLAUDE_PLUGIN_ROOT)
   printf '{\n  "additional_context": "%s"\n}\n' "$session_context"

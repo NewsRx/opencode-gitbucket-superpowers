@@ -178,25 +178,73 @@ You MUST complete each phase before proceeding to the next.
    - MUST have before fixing
    - Use the `superpowers:test-driven-development` skill for writing proper failing tests
 
-2. **Implement Single Fix**
+2. **Create Bug Issue (REQUIRED)**
+
+   Bugs are tracked as GitHub/GitBucket issues. No local file storage.
+   
+   Check `GIT_PLATFORM` in your session context (`<GIT_CONTEXT>` block):
+   
+   - If `GIT_PLATFORM=github`:
+     ```markdown
+     Use github_issue_write with:
+     - method: "create"
+     - title: [Bug] <brief description>
+     - body:
+       ## Summary
+       <one sentence description>
+       
+       ## Root Cause
+       <what you found in investigation>
+       
+       ## Reproduction
+       <steps to trigger>
+       
+       ## Evidence
+       <relevant logs, stack traces, data>
+       
+       ## Proposed Fix
+       <what you're about to implement>
+     - labels: bug
+     ```
+   
+   - Else if `GIT_PLATFORM=gitbucket`:
+     ```markdown
+     First, check GITBUCKET_HAS_CREDENTIALS:
+     - If false: STOP. Tell user "GitBucket credentials required."
+     - If true: Proceed with gitbucket_create_issue
+     
+     Use gitbucket_create_issue with:
+     - title: [Bug] <brief description>
+     - body: (same structure as above)
+     - labels: bug
+     ```
+   
+   - Else (unknown):
+     ```markdown
+     STOP. Tell user "No GitHub/GitBucket remote detected."
+     ```
+   
+   See `../platform-detection.md` for details.
+
+3. **Implement Single Fix**
    - Address the root cause identified
    - ONE change at a time
    - No "while I'm here" improvements
    - No bundled refactoring
 
-3. **Verify Fix**
+4. **Verify Fix**
    - Test passes now?
    - No other tests broken?
    - Issue actually resolved?
 
-4. **If Fix Doesn't Work**
+5. **If Fix Doesn't Work**
    - STOP
    - Count: How many fixes have you tried?
    - If < 3: Return to Phase 1, re-analyze with new information
-   - **If ≥ 3: STOP and question the architecture (step 5 below)**
+   - **If ≥ 3: STOP and question the architecture (step 6 below)**
    - DON'T attempt Fix #4 without architectural discussion
 
-5. **If 3+ Fixes Failed: Question Architecture**
+6. **If 3+ Fixes Failed: Question Architecture**
 
    **Pattern indicating architectural problem:**
    - Each fix reveals new shared state/coupling/problem in different place

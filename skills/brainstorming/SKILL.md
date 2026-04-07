@@ -106,29 +106,57 @@ digraph brainstorming {
 
 ## After the Design
 
-**Documentation:**
+**Create Spec Issue (REQUIRED):**
 
-- Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
-  - (User preferences for spec location override this default)
-- Use elements-of-style:writing-clearly-and-concisely skill if available
-- Commit the design document to git
+Specs are stored as GitHub/GitBucket issues. No local file storage.
+
+Check `GIT_PLATFORM` in your session context (`<GIT_CONTEXT>` block):
+
+- If `GIT_PLATFORM=github`:
+  ```markdown
+  Use github_issue_write with:
+  - method: "create"
+  - title: [Spec] <topic>
+  - body: Full design specification (all sections, complete content)
+  - labels: spec, plus relevant feature labels
+  ```
+
+- Else if `GIT_PLATFORM=gitbucket`:
+  ```markdown
+  First, check GITBUCKET_HAS_CREDENTIALS:
+  - If false: STOP. Tell user "GitBucket credentials required. Set GITBUCKET_URL and GITBUCKET_TOKEN in .env, then restart session."
+  - If true: Proceed with gitbucket_create_issue
+  
+  Use gitbucket_create_issue with:
+  - title: [Spec] <topic>
+  - body: Full design specification (all sections, complete content)
+  - labels: spec, plus relevant feature labels
+  ```
+
+- Else (unknown):
+  ```markdown
+  STOP. Tell user "No GitHub/GitBucket remote detected. Configure git remote to enable spec tracking."
+  Do not proceed until platform is configured.
+  ```
+
+The issue body should contain the complete spec. Do not link to a file - put all design content in the issue.
 
 **Spec Self-Review:**
-After writing the spec document, look at it with fresh eyes:
+After creating the issue, review the spec content with fresh eyes:
 
-1. **Placeholder scan:** Any "TBD", "TODO", incomplete sections, or vague requirements? Fix them.
-2. **Internal consistency:** Do any sections contradict each other? Does the architecture match the feature descriptions?
+1. **Placeholder scan:** Any "TBD", "TODO", incomplete sections, or vague requirements? Edit the issue to fix them.
+2. **Internal consistency:** Do any sections contradict each other? Does the architecture match the feature descriptions? Edit to fix.
 3. **Scope check:** Is this focused enough for a single implementation plan, or does it need decomposition?
-4. **Ambiguity check:** Could any requirement be interpreted two different ways? If so, pick one and make it explicit.
+4. **Ambiguity check:** Could any requirement be interpreted two different ways? If so, edit to make it explicit.
 
-Fix any issues inline. No need to re-review — just fix and move on.
+Edit the issue inline to fix any problems. No need to re-review — just fix and move on.
 
 **User Review Gate:**
-After the spec review loop passes, ask the user to review the written spec before proceeding:
+After the spec review loop passes, ask the user to review the spec issue:
 
-> "Spec written and committed to `<path>`. Please review it and let me know if you want to make any changes before we start writing out the implementation plan."
+> "Spec created as issue #<number>. Please review it and let me know if you want to make any changes before we start writing out the implementation plan."
 
-Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
+Share the issue URL so the user can review directly. If they request changes, edit the issue and re-run the spec review loop. Only proceed once the user approves.
 
 **Implementation:**
 
