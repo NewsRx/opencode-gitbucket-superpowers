@@ -124,39 +124,85 @@ Every step must contain the actual content an engineer needs. These are **plan f
 
 Plans are stored as GitHub/GitBucket issues. No local file storage.
 
+**MCP Availability Gate (BEFORE creating issue):**
+
 Check `GIT_PLATFORM` in your session context (`<GIT_CONTEXT>` block):
 
 - If `GIT_PLATFORM=github`:
-  ```markdown
-  Use github_issue_write with:
-  - method: "create"
-  - title: [Plan] <feature-name> Implementation
-  - body: Full implementation plan (all tasks, all steps, complete code)
-  - labels: plan
-  ```
+  - GitHub MCP available → Proceed with github_issue_write
 
 - Else if `GIT_PLATFORM=gitbucket`:
   ```markdown
-  First, check GITBUCKET_HAS_CREDENTIALS:
-  - If false: STOP. Tell user "GitBucket credentials required."
+  Check GITBUCKET_HAS_CREDENTIALS:
+  - If false: STOP. Tell user "GitBucket credentials required. Set GITBUCKET_URL and GITBUCKET_TOKEN in .env, then restart session."
   - If true: Proceed with gitbucket_create_issue
-  
-  Use gitbucket_create_issue with:
-  - title: [Plan] <feature-name> Implementation
-  - body: Full implementation plan (all tasks, all steps, complete code)
-  - labels: plan
   ```
 
 - Else (unknown):
   ```markdown
-  STOP. Tell user "No GitHub/GitBucket remote detected."
+  STOP. Tell user:
+  ```
+  FATAL: Cannot create plan - no issue tracking available
+  
+  Plans must be tracked in GitHub/GitBucket issues for:
+  - Persistent storage
+  - Team visibility
+  - Progress tracking
+  
+  Options:
+  1. Add GitHub remote: git remote add origin https://github.com/user/repo.git
+  2. Add GitBucket credentials to .env (GITBUCKET_URL, GITBUCKET_TOKEN)
+  3. Restart session to re-detect platform
+  
+  Cannot proceed without issue tracking.
   ```
 
-The issue body should contain the complete plan. Do not link to a file - put all implementation content in the issue.
+**Create Plan Issue (after gate passes):**
+
+The issue body should contain the complete plan with:
+- All tasks
+- All steps
+- Complete code blocks
+
+Use the following:
+
+- If GitHub:
+  ```markdown
+  Use github_issue_write with:
+  - method: "create"
+  - title: [Plan] <feature-name> Implementation
+  - body: Full implementation plan (all sections, complete content)
+  - labels: plan
+  ```
+
+- If GitBucket:
+  ```markdown
+  Use gitbucket_create_issue with:
+  - title: [Plan] <feature-name> Implementation
+  - body: Full implementation plan (all sections, complete content)
+  - labels: plan
+  ```
 
 **Link to Spec Issue:**
 
 Comment on the spec issue to link this plan:
+
+- If GitHub: `github_add_issue_comment(spec_issue_number, "Implementation plan: #<plan_issue_number>")`
+- If GitBucket: `gitbucket_add_issue_comment(spec_issue_number, "Implementation plan: #<plan_issue_number>")`
+
+**No Local File Storage:**
+
+Plans are NOT stored in `docs/superpowers/plans/`. They live only as issues.
+
+**Why Halt Instead of Fallback:**
+
+File-based plans are **not acceptable** because:
+- No team visibility
+- No persistent tracking
+- Lost on developer machine
+- No integration with workflow
+
+**MCP availability is a hard requirement.** Halt with clear remediation steps.
 
 - If GitHub: `github_add_issue_comment(spec_issue_number, "Implementation plan: #<plan_issue_number>")`
 - If GitBucket: `gitbucket_add_issue_comment(spec_issue_number, "Implementation plan: #<plan_issue_number>")`
