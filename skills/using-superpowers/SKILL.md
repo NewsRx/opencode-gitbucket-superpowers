@@ -39,6 +39,23 @@ If CLAUDE.md, GEMINI.md, or AGENTS.md says "don't use TDD" and a skill says "alw
 
 Skills use Claude Code tool names. Non-CC platforms: see `references/copilot-tools.md` (Copilot CLI), `references/codex-tools.md` (Codex) for tool equivalents. Gemini CLI users get the tool mapping loaded automatically via GEMINI.md.
 
+**See `platform-detection.md` for details on:**
+- Platform detection (GitHub vs GitBucket)
+- Branch workflow detection and configuration
+- File migration logic
+
+## Branch Workflow Configuration
+
+Agents should detect and adapt to the repository's branch workflow:
+
+| File exists | Branch workflow |
+|-------------|-----------------|
+| `.main_branch` | Use branch named in file |
+| `.github` directory, no `.main_branch` | Use `main` |
+| No `.github` and no `.main_branch` | Use `master` |
+
+When creating branches for features or fixes, derive from the detected main branch.
+
 # Using Skills
 
 ## The Rule
