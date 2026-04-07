@@ -44,6 +44,83 @@ For GitBucket:
 All specs, plans, and bug reports are stored as issues. No local file fallback.
 ```
 
+## Branch Workflow Detection
+
+**Automatic at session start:**
+
+The plugin detects and configures the branch workflow:
+
+1. **Detect production branch:**
+   ```bash
+   # Try origin/HEAD first
+   PRODUCTION_BRANCH=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null | sed 's|origin/||')
+   
+   # Fallback to common names
+   if [ -z "$PRODUCTION_BRANCH" ]; then
+     for branch in main master; do
+       if git show-ref --verify --quiet refs/remotes/origin/$branch; then
+         PRODUCTION_BRANCH=$branch
+         break
+       fi
+     done
+   fi
+   ```
+
+2. **If production branch cannot be detected:**
+   - Halt session with error: "Cannot detect production branch. Set origin/HEAD with: `git remote set-head origin <your-main-branch>`"
+   - Suggest adding `branch-workflow: feature|dev|<branch>` to CLAUDE.md or AGENTS.md
+
+3. **Read branch-workflow configuration:**
+   - Parse CLAUDE.md/AGENTS.md for `branch-workflow: <prefix>|<integration>|<production>`
+   - Format: `<feature-prefix>|<integration-branch>|<production-branch>`
+   - Example: `branch-workflow: feature|dev|newsrx`
+
+4. **Default workflow:**
+   - If no configuration: use `feature|dev|<PRODUCTION_BRANCH>`
+   - Feature prefix: `feature` (or configured prefix)
+   - Integration branch: `dev` (or configured integration branch)
+   - Production branch: detected from origin/HEAD or configuration
+
+5. **Create integration branch if missing:**
+   ```bash
+   INTEGRATION_BRANCH="dev"  # default
+   CONFIGURED_WORKFLOW=$(grep "branch-workflow:" CLAUDE.md AGENTS.md 2>/dev/null)
+   
+   if [ -n "$CONFIGURED_WORKFLOW" ]; then
+     INTEGRATION_BRANCH=$(echo "$CONFIGURED_WORKFLOW" | cut -d'|' -f2)
+   fi
+   
+   # Create if missing
+   if ! git show-ref --verify --quiet refs/heads/$INTEGRATION_BRANCH; then
+     if [ -n "$PRODUCTION_BRANCH" ]; then
+       git branch $INTEGRATION_BRANCH $PRODUCTION_BRANCH
+       echo "Created '$INTEGRATION_BRANCH' branch from '$PRODUCTION_BRANCH'"
+       # Push to remote if origin exists
+       git push -u origin $INTEGRATION_BRANCH 2>/dev/null || true
+     fi
+   fi
+   ```
+
+6. **Inject into session context:**
+   ```
+   <GIT_CONTEXT>
+   ...
+   GIT_WORKFLOW_PREFIX=feature
+   GIT_INTEGRATION_BRANCH=dev
+   GIT_PRODUCTION_BRANCH=<detected>
+   </GIT_CONTEXT>
+   ```
+
+**Examples:**
+
+| Repo State | Detection Result |
+|-----------|------------------|
+| origin/HEAD set | Production branch from origin/HEAD |
+| No origin/HEAD, has origin/main | Production = main |
+| No origin/HEAD, has origin/master | Production = master |
+| Custom main branch (newsrx) | If origin/HEAD → origin/newsrx, detected correctly |
+| No remote branches | Halt with error, suggest configuration |
+
 ## Example: Creating a Spec Issue
 
 ```markdown
