@@ -121,6 +121,81 @@ The plugin detects and configures the branch workflow:
 | Custom main branch (newsrx) | If origin/HEAD → origin/newsrx, detected correctly |
 | No remote branches | Halt with error, suggest configuration |
 
+## File Migration to Issues
+
+**On session start (after platform detected):**
+
+If GitHub or GitBucket MCP available:
+
+1. **Discover existing files:**
+   ```bash
+   find docs/superpowers/specs -name "*.md" -type f 2>/dev/null
+   find docs/superpowers/plans -name "*.md" -type f 2>/dev/null
+   ```
+
+2. **For each spec file:**
+   ```markdown
+   If GIT_PLATFORM=github:
+     - Parse title from first `# ` header
+     - Use github_issue_write with:
+       - title: `[Spec] <parsed-title>`
+       - body: File content + "\n\nMigrated from: `docs/superpowers/specs/<filename>.md`"
+       - labels: spec
+   
+   If GIT_PLATFORM=gitbucket:
+     - Parse title from first `# ` header
+     - Use gitbucket_create_issue with:
+       - title: `[Spec] <parsed-title>`
+       - body: File content + "\n\nMigrated from: `docs/superpowers/specs/<filename>.md`"
+       - labels: spec
+   ```
+
+3. **For each plan file:**
+   ```markdown
+   If GIT_PLATFORM=github:
+     - Parse title from first `# ` header
+     - Use github_issue_write with:
+       - title: `[Plan] <parsed-title>`
+       - body: File content + "\n\nMigrated from: `docs/superpowers/plans/<filename>.md`"
+       - labels: plan
+   
+   If GIT_PLATFORM=gitbucket:
+     - Parse title from first `# ` header
+     - Use gitbucket_create_issue with:
+       - title: `[Plan] <parsed-title>`
+       - body: File content + "\n\nMigrated from: `docs/superpowers/plans/<filename>.md`"
+       - labels: plan
+   ```
+
+4. **On successful issue creation:**
+   ```bash
+   # Create archive directory if missing
+   mkdir -p docs/superpowers/archive
+   
+   # Move file to archive
+   mv docs/superpowers/specs/<filename>.md docs/superpowers/archive/<filename>.md
+   ```
+
+5. **Add archive comment to issue:**
+   ```markdown
+   Add comment: "Archived original: `docs/superpowers/archive/<filename>.md`"
+   ```
+
+6. **Report to dev:**
+   ```
+   Migrated <N> specs, <M> plans to GitHub/GitBucket issues.
+   Originals archived in docs/superpowers/archive/
+   ```
+
+**Error handling:**
+- File has no title header → use filename as title
+- Issue already exists (title match) → skip, don't duplicate
+- Archive directory missing → create it
+- Migration fails → log error, continue session, leave file in place
+- Platform unknown → skip migration (file-based workflow continues)
+
+**Migration runs once:** Only on first session start after MCP available.
+
 ## Example: Creating a Spec Issue
 
 ```markdown
