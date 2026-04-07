@@ -110,9 +110,45 @@ digraph brainstorming {
 
 Specs are stored as GitHub/GitBucket issues. No local file storage.
 
-Check `GIT_PLATFORM` in your session context (`<GIT_CONTEXT>` block):
+**MCP Availability Gate (BEFORE creating issue):**
+
+Check `<GIT_CONTEXT>` for MCP availability:
 
 - If `GIT_PLATFORM=github`:
+  - GitHub MCP available → Proceed with github_issue_write
+
+- Else if `GIT_PLATFORM=gitbucket`:
+  - If `GITBUCKET_HAS_CREDENTIALS=false`:
+    ```markdown
+    STOP. Tell user: "GitBucket credentials required. Set GITBUCKET_URL and GITBUCKET_TOKEN in .env, then restart session."
+    Do not proceed until credentials configured.
+    ```
+  - GitBucket MCP available → Proceed with gitbucket_create_issue
+
+- Else (`GIT_PLATFORM=unknown`):
+  ```markdown
+  STOP. Tell user:
+  ```
+  FATAL: Cannot create spec - no issue tracking available
+  
+  Specs and plans must be tracked in GitHub/GitBucket issues for:
+  - Persistent storage
+  - Team visibility
+  - Progress tracking
+  
+  Options:
+  1. Add GitHub remote: git remote add origin https://github.com/user/repo.git
+  2. Add GitBucket credentials to .env (GITBUCKET_URL, GITBUCKET_TOKEN)
+  3. Restart session to re-detect platform
+  
+  Cannot proceed without issue tracking.
+  ```
+  Do not proceed until platform is configured.
+  ```
+
+**Create Issue (after gate passes):**
+
+- If GitHub:
   ```markdown
   Use github_issue_write with:
   - method: "create"
@@ -121,25 +157,25 @@ Check `GIT_PLATFORM` in your session context (`<GIT_CONTEXT>` block):
   - labels: spec, plus relevant feature labels
   ```
 
-- Else if `GIT_PLATFORM=gitbucket`:
+- If GitBucket:
   ```markdown
-  First, check GITBUCKET_HAS_CREDENTIALS:
-  - If false: STOP. Tell user "GitBucket credentials required. Set GITBUCKET_URL and GITBUCKET_TOKEN in .env, then restart session."
-  - If true: Proceed with gitbucket_create_issue
-  
   Use gitbucket_create_issue with:
   - title: [Spec] <topic>
   - body: Full design specification (all sections, complete content)
   - labels: spec, plus relevant feature labels
   ```
 
-- Else (unknown):
-  ```markdown
-  STOP. Tell user "No GitHub/GitBucket remote detected. Configure git remote to enable spec tracking."
-  Do not proceed until platform is configured.
-  ```
-
 The issue body should contain the complete spec. Do not link to a file - put all design content in the issue.
+
+**Why Halt Instead of Fallback:**
+
+File-based specs are **not acceptable** because:
+- No team visibility
+- No persistent tracking
+- Lost on developer machine
+- No integration with workflow
+
+**MCP availability is a hard requirement.** Halt with clear remediation steps.
 
 **Spec Self-Review:**
 After creating the issue, review the spec content with fresh eyes:
