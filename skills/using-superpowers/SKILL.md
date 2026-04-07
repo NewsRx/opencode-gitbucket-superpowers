@@ -39,6 +39,76 @@ If CLAUDE.md, GEMINI.md, or AGENTS.md says "don't use TDD" and a skill says "alw
 
 Skills use Claude Code tool names. Non-CC platforms: see `references/copilot-tools.md` (Copilot CLI), `references/codex-tools.md` (Codex) for tool equivalents. Gemini CLI users get the tool mapping loaded automatically via GEMINI.md.
 
+**See `../platform-detection.md` for details on:**
+- Platform detection (GitHub vs GitBucket)
+- Branch workflow detection and configuration
+- File migration logic
+
+## Branch Workflow Configuration
+
+Skills that create branches, merge, or create PRs MUST read branch workflow from `<GIT_CONTEXT>`.
+
+### Reading Branch Workflow
+
+**From session context:**
+```
+<GIT_CONTEXT>
+...
+GIT_WORKFLOW_PREFIX=feature
+GIT_INTEGRATION_BRANCH=dev
+GIT_PRODUCTION_BRANCH=<detected>
+</GIT_CONTEXT>
+```
+
+**Three-branch workflow (default):**
+- Feature branches branch from integration branch (`dev`)
+- Feature branches merge/PR back to integration branch
+- Integration branch eventually merges to production branch
+
+**Two-branch workflow (when configured):**
+- Feature branches branch from production branch
+- Feature branches merge/PR back to production branch
+
+### Overriding Default
+
+Users can override in CLAUDE.md or AGENTS.md:
+
+```markdown
+## Superpowers Configuration
+
+branch-workflow: feature|dev|newsrx
+```
+
+Format: `<prefix>|<integration>|<production>`
+
+### Skill Integration Pattern
+
+```markdown
+When creating a feature branch:
+1. Read GIT_INTEGRATION_BRANCH from <GIT_CONTEXT>
+2. Use it as base: `git worktree add .worktrees/feature-name -b feature-name $INTEGRATION_BRANCH`
+
+When merging/PR:
+1. Read GIT_INTEGRATION_BRANCH from <GIT_CONTEXT>
+2. Use it as target: `git checkout $INTEGRATION_BRANCH && git merge feature-name`
+3. Or create PR against $INTEGRATION_BRANCH
+
+When referencing branches in issues:
+- Spec: "Feature will integrate into `<integration-branch>` branch"
+- PR: Create PR against integration branch (not production)
+```
+
+### Skills That Must Enforce
+
+All git-touching skills must read and respect branch workflow:
+
+- `using-git-worktrees` - Creates feature branch from integration branch
+- `finishing-a-development-branch` - Merges/PRs to integration branch
+- `brainstorming` - References correct base branch in spec
+- `writing-plans` - Links plan to spec with correct branches
+- `subagent-driven-development` - Reports branch status with workflow context
+- `executing-plans` - Merges work to correct integration branch
+
 # Using Skills
 
 ## The Rule
