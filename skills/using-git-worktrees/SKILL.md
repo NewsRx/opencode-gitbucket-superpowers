@@ -216,3 +216,66 @@ Ready to implement auth feature
 
 **Pairs with:**
 - **finishing-a-development-branch** - REQUIRED for cleanup after work complete
+
+## Worktree Compatibility Guard
+
+**When using worktrees:**
+Some MCP tools expect a single workspace and don't work correctly with worktrees.
+
+### Compatible Tools
+
+**These tools work in worktrees:**
+- Git commands (worktree-aware, operate on `.git` directory)
+- File editors (Read, Write, Edit, Bash)
+- Language servers (operate per-file)
+- GitHub MCP tools (API-based, directory-agnostic)
+- GitBucket MCP tools (API-based, directory-agnostic)
+
+### Incompatible Tools (Workspace-Level State)
+
+**These tools expect single workspace:**
+- PyCharm MCP - opens project workspace, expects single `.idea` config
+- IDE tools that open projects (VSCode extensions, IntelliJ tools)
+- Any tool maintaining workspace-level sessions or caches
+
+### Detection and Filtering
+
+**Before creating worktree:**
+
+```markdown
+Check available MCP tools in session:
+- If PyCharm_* tools detected → WARN and SKIP these tools
+- If any tool with open_workspace, load_project patterns → WARN and SKIP
+
+**Warning message:**
+```
+PyCharm MCP tools detected but incompatible with worktrees.
+
+Continuing with Git/File/GitHub/GitBucket tools only. IDE features will not be available in worktree.
+
+Proceeding with worktree creation...
+```
+```
+
+**After worktree created:**
+
+```markdown
+Report compatibility status:
+```
+Worktree ready at <worktree-path>
+Using: Git, File, GitHub/GitBucket MCP tools
+Skipped: PyCharm MCP (incompatible with worktrees)
+
+For IDE features, use main workspace at <main-workspace-path>
+```
+```
+
+### Why Not Block
+
+**Incompatible tools are filtered, not blocked:**
+- Blocking halts work unnecessarily
+- Many workflows succeed with Git/File tools alone
+- Dev can still use IDE features in main workspace
+- Clear messaging informs dev of limitations
+
+**Proceed with partial functionality** vs. **Stop everything**.
