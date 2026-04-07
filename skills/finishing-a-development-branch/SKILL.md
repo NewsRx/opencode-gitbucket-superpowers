@@ -37,14 +37,44 @@ Stop. Don't proceed to Step 2.
 
 **If tests pass:** Continue to Step 2.
 
-### Step 2: Determine Base Branch
+### Step 2: Determine Target Branch
 
-```bash
-# Try common base branches
-git merge-base HEAD main 2>/dev/null || git merge-base HEAD master 2>/dev/null
+**Read branch workflow from session:**
+
+```markdown
+Parse <GIT_CONTEXT> for:
+- GIT_INTEGRATION_BRANCH (e.g., "dev")
+- GIT_PRODUCTION_BRANCH (e.g., "main", "newsrx")
 ```
 
-Or ask: "This branch split from main - is that correct?"
+```bash
+# Use integration branch as target for feature work
+INTEGRATION_BRANCH=$(grep GIT_INTEGRATION_BRANCH <<< "$GIT_CONTEXT" | cut -d= -f2)
+
+# Verify branch exists
+git show-ref --verify --quiet refs/heads/$INTEGRATION_BRANCH
+
+# Or detect from git if not in context
+if [ -z "$INTEGRATION_BRANCH" ]; then
+  # Check for dev branch
+  if git show-ref --verify --quiet refs/heads/dev; then
+    INTEGRATION_BRANCH="dev"
+  else
+    # Fallback to production branch
+    INTEGRATION_BRANCH=$(git rev-parse --abbrev-ref origin/HEAD | sed 's|origin/||')
+  fi
+fi
+```
+
+**Ask if unclear:**
+```
+This branch appears to integrate into '$INTEGRATION_BRANCH'. Is that correct?
+
+1. Yes, merge to $INTEGRATION_BRANCH
+2. No, merge to different branch (specify)
+
+Which option?
+```
 
 ### Step 3: Present Options
 
@@ -53,8 +83,8 @@ Present exactly these 4 options:
 ```
 Implementation complete. What would you like to do?
 
-1. Merge back to <base-branch> locally
-2. Push and create a Pull Request
+1. Merge back to <integration-branch> locally
+2. Push and create a Pull Request against <integration-branch>
 3. Keep the branch as-is (I'll handle it later)
 4. Discard this work
 
@@ -68,8 +98,8 @@ Which option?
 #### Option 1: Merge Locally
 
 ```bash
-# Switch to base branch
-git checkout <base-branch>
+# Switch to integration branch
+git checkout $INTEGRATION_BRANCH
 
 # Pull latest
 git pull
@@ -92,8 +122,8 @@ Then: Cleanup worktree (Step 5)
 # Push branch
 git push -u origin <feature-branch>
 
-# Create PR
-gh pr create --title "<title>" --body "$(cat <<'EOF'
+# Create PR against integration branch
+gh pr create --base $INTEGRATION_BRANCH --title "<title>" --body "$(cat <<'EOF'
 ## Summary
 <2-3 bullets of what changed>
 
